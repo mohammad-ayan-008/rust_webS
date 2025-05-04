@@ -17,17 +17,19 @@ impl HttpServer {
         })
     }
 
-    pub async fn listen<F>(&mut self, closure: F)
+    pub async fn listen<F, Fut>(&mut self,closure: F)
     where
-        F: AsyncFnMut(Option<&str>) -> String + Send + Sync + 'static,
+        F: Fn(Option<String>) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = String> + Send,
     {
-        let rc = Arc::new(closure);
+        let mut rc = Arc::new( closure);
 
         loop {
             if let Ok((mut i, _)) = self.tcp_listener.accept().await {
                 let closure = Arc::clone(&rc);
                 tokio::spawn(async move {
-                    let cp = closure(Self::fetch_response(&mut i).await.unwrap().as_deref()).await;
+                    let data = Self::fetch_response(&mut i).await.unwrap();
+                    let cp = closure(data).await;
                     Self::write_to_server(&mut i, cp).await
                 });
             }
