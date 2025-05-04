@@ -1,4 +1,4 @@
-use std::{error::Error, sync::Arc, time::Duration};
+use std::{error::Error, sync::Arc};
 
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufWriter},
@@ -17,43 +17,49 @@ impl HttpServer {
         })
     }
 
-    pub async fn listen<F>(&mut self,closure: F)
+    pub async fn listen<F>(&mut self, closure: F)
     where
-        F: Fn(Option<&str>) -> String + Send +Sync +'static,
+        F: AsyncFnMut(Option<&str>) -> String + Send + Sync + 'static,
     {
-        let rc= Arc::new(closure);
-        
+        let rc = Arc::new(closure);
+
         loop {
             if let Ok((mut i, _)) = self.tcp_listener.accept().await {
                 let closure = Arc::clone(&rc);
                 tokio::spawn(async move {
-                    let cp = closure(Self::fetch_response(&mut i).await.unwrap().as_deref());
-                    Self::write_to_server(&mut i, cp).await}
-                );
+                    let cp = closure(Self::fetch_response(&mut i).await.unwrap().as_deref()).await;
+                    Self::write_to_server(&mut i, cp).await
+                });
             }
         }
     }
 
     pub async fn write_to_server(stream: &mut TcpStream, data: String) {
         let mut buff = BufWriter::new(stream);
-        buff.
-            write_all(format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: keep-alive\r\n\r\n",data.len()).as_bytes()).await.unwrap();
+        buff.write_all(
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: keep-alive\r\n\r\n",
+                data.len()
+            )
+            .as_bytes(),
+        )
+        .await
+        .unwrap();
         buff.write_all(data.as_bytes()).await.unwrap();
         buff.flush().await.unwrap();
     }
 
     pub async fn fetch_response(
-         tcp_stream: &mut TcpStream,
+        tcp_stream: &mut TcpStream,
     ) -> Result<Option<String>, Box<dyn Error>> {
         let mut buffer = tokio::io::BufReader::new(tcp_stream);
         let mut line = String::new();
-        let _= buffer.read_line(&mut line).await;
+        let _ = buffer.read_line(&mut line).await;
 
-        if let Some(s)= line.split(" ").nth(1){
-           Ok(Some(s.to_string()))
-        }else {
+        if let Some(s) = line.split(" ").nth(1) {
+            Ok(Some(s.to_string()))
+        } else {
             Ok(Some("".to_string()))
         }
-
     }
 }

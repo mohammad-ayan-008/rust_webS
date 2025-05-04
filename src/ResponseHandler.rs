@@ -33,15 +33,13 @@ fn main() {
 */
 
 // A trait with an associated type `Output`
-trait GenerateL<I>{
-    fn generate(self)->I;
+trait GenerateL<I> {
+    fn generate(self) -> I;
 }
 
 // Implementing Generate for String with `Output` being i32
 impl GenerateL<String> for String {
-
-
-    fn generate(self)-> String{
+    fn generate(self) -> String {
         42.to_string()
     }
 }
@@ -49,7 +47,7 @@ impl GenerateL<String> for String {
 // You CANNOT implement Generate for String again with a different Output type.
 // This will cause a conflict:
 impl GenerateL<i32> for String {
-    fn generate(self)->i32 {
+    fn generate(self) -> i32 {
         6
     }
 }
@@ -57,7 +55,6 @@ impl GenerateL<i32> for String {
 fn main() {
     //let my_string = String::from("Generate value: ");
     //let result = my_string.generate(); // Will always return an i32 in this case
-    
+
     // println!("{}", result); // Will print 42
 }
-
