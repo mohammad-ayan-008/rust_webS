@@ -1,3 +1,4 @@
+
 use std::{error::Error, sync::Arc};
 
 use tokio::{
@@ -17,12 +18,12 @@ impl HttpServer {
         })
     }
 
-    pub async fn listen<F, Fut>(&mut self,closure: F)
+    pub async fn listen<F>(&mut self,closure: F)
     where
-        F: Fn(Option<String>) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = String> + Send,
+        F: AsyncFn(Option<String>) -> String+ Send + Sync + 'static,
+        for<'a> F::CallRefFuture<'a>: Send
     {
-        let mut rc = Arc::new( closure);
+        let  rc = Arc::new( closure);
 
         loop {
             if let Ok((mut i, _)) = self.tcp_listener.accept().await {
@@ -53,7 +54,7 @@ impl HttpServer {
 
     pub async fn fetch_response(
         tcp_stream: &mut TcpStream,
-    ) -> Result<Option<String>, Box<dyn Error>> {
+    ) -> Result<Option<String>, Box<dyn Error +Send>> {
         let mut buffer = tokio::io::BufReader::new(tcp_stream);
         let mut line = String::new();
         let _ = buffer.read_line(&mut line).await;
